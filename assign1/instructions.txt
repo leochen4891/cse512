@@ -1,0 +1,30 @@
+Hi,
+
+Please check the tester for assignment 1 to help you test your scripts.
+
+Best Regards
+
+Instruction for the tester:
+
+Please check these TODOs before running the test script file:
+Tested with python 2.7 only
+Only works if you constructed your functions exactly as per the interface file. There can be more of your functions.
+Update your module on line 23. I named my script file as Assignment.py
+Update the middleware functions - before_db_creation_middleware,   after_db_creation_middleware,   before_test_script_starts_  middleware, after_test_script_  ends_middleware if you are using any
+All parameters in the lines 10 - 17 are set for the given test case file (test_data.dat). Update these values if you are using a different
+You can check what all tests are done in the lines 341 - 363
+Assumes that you named your partition tables differently for range and round robin. You can tweak the lines 342 - 362 if that's not the case with your script.
+Tests are done in an order i.e. first range partitioning is done and then its insert. So if we deliberately make the range partitioning method fail, no partitions will be created, so test for insert may throw an error, which we can safely ignore.
+The script asks if you want to delete all tables at the end, giving an option for manual inspection of tables. Be sure to delete all tables before running the script again
+I did not test the test script thoroughly.  If you find any bugs, add a fix and share if you like 
+Hope this helps. Good luck!
+
+
+Please use the attached interface 
+This Interfae:
+creates the DB for a given name if not present
+connects to DB using a connection string. 
+psycopg2 module have to be installed for this work. This is driver we are using to connect to Postgres server.
+
+Tutorial about psycopg2:
+https://wiki.postgresql.org/wiki/Psycopg2_Tutorial
