@@ -12,7 +12,6 @@ RROBIN_TABLE_PREFIX = 'rrobin_part'
 USER_ID_COLNAME = 'userid'
 MOVIE_ID_COLNAME = 'movieid'
 RATING_COLNAME = 'rating'
-TIMESTAMP_COLNAME = 'timestamp'
 
 POWER = 3
 INPUT_FILE_PATH = 'test_data{0}.dat'.format(POWER)
@@ -29,8 +28,8 @@ def cleartable(user=USERNAME, password=PASSWORD, dbname=DATABASE_NAME):
 
         # cur.execute("CREATE TABLE Cars(Id INTEGER PRIMARY KEY, Name VARCHAR(20), Price INT)")
         # cur.execute("INSERT INTO Cars VALUES(1,'Audi',52642)")
-        createTableCmd = 'CREATE TABLE {0}({1} INTEGER, {2} INTEGER, {3} FLOAT, {4} INTEGER)'\
-            .format(RATINGS_TABLE, USER_ID_COLNAME, MOVIE_ID_COLNAME, RATING_COLNAME, TIMESTAMP_COLNAME)
+        createTableCmd = 'CREATE TABLE {0}({1} INTEGER, {2} INTEGER, {3} FLOAT)'\
+            .format(RATINGS_TABLE, USER_ID_COLNAME, MOVIE_ID_COLNAME, RATING_COLNAME)
         # print createTableCmd
         cur.execute(createTableCmd)
         con.commit()
@@ -53,7 +52,7 @@ def loadratings(ratingstablename, ratingsfilepath, openconnection):
             strs = line.split('::')
 
             # insertCmd = 'INSERT INTO {0} VALUES({1},{2},{3},{4})'.format(RATINGS_TABLE, strs[0], strs[1], strs[2],strs[3])
-            insertCmd = 'INSERT INTO {0} VALUES({1},{2},{3},{4})'.format(RATINGS_TABLE, *strs)
+            insertCmd = 'INSERT INTO {0} VALUES({1},{2},{3})'.format(RATINGS_TABLE, *strs)
             # print insertCmd
             cur.execute(insertCmd)
             line = f.readline()
@@ -71,6 +70,22 @@ def loadratings(ratingstablename, ratingsfilepath, openconnection):
         if cur: cur.close()
 
 
+
+def rangepartition(ratingstablename, numberofpartitions, openconnection):
+    cur = None
+    try:
+        cur = con.cursor()
+
+        print 'committing'
+        con.commit()
+        print 'committing finished'
+
+    except Exception as detail:
+        print 'range partition failed:', detail
+    finally:
+        if cur: cur.close()
+
+
 if __name__ == '__main__':
     con = None
     try:
@@ -79,7 +94,7 @@ if __name__ == '__main__':
         con = getopenconnection()
 
         loadratings(RATINGS_TABLE, INPUT_FILE_PATH, con)
-
+        rangepartition(RATINGS_TABLE, 3, con)
 
     except Exception as detail:
         print "OOPS! This is the error ==> ", detail

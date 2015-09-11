@@ -20,7 +20,7 @@ import psycopg2
 import datetime
 import time
 
-import Assignment as MyAssignment  # TODO: Change the 'Assignment' to your filename
+import assign1 as MyAssignment  # TODO: Change the 'Assignment' to your filename
 
 
 # SETUP Functions
@@ -31,7 +31,7 @@ def createdb(dbname):
     :return:None
     """
     # Connect to the default database
-    con = getopenconnection()
+    con = getopenconnection(dbname=DATABASE_NAME)
     con.set_isolation_level(psycopg2.extensions.ISOLATION_LEVEL_AUTOCOMMIT)
     cur = con.cursor()
 
