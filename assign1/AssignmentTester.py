@@ -13,8 +13,10 @@ RROBIN_TABLE_PREFIX = 'rrobin_part'
 USER_ID_COLNAME = 'userid'
 MOVIE_ID_COLNAME = 'movieid'
 RATING_COLNAME = 'rating'
-INPUT_FILE_PATH = 'test_data.dat'
-ACTUAL_ROWS_IN_INPUT_FILE = 20  # Number of lines in the input file
+
+POWER = 1
+INPUT_FILE_PATH = 'test_data{0}.dat'.format(POWER)
+ACTUAL_ROWS_IN_INPUT_FILE = 10**POWER  # Number of lines in the input file
 
 import psycopg2
 import datetime
@@ -31,7 +33,7 @@ def createdb(dbname):
     :return:None
     """
     # Connect to the default database
-    con = getopenconnection(dbname=DATABASE_NAME)
+    con = getopenconnection()
     con.set_isolation_level(psycopg2.extensions.ISOLATION_LEVEL_AUTOCOMMIT)
     cur = con.cursor()
 
@@ -136,31 +138,31 @@ def totalrowsinallpartitions(cur, n, rangepartitiontableprefix, partitionstartin
 
 
 def testrangeandrobinpartitioning(n, openconnection, rangepartitiontableprefix, partitionstartindex):
-    with openconnection.cursor() as cur:
-        if not isinstance(n, int) or n < 0:
-            # Test 1: Check the number of tables created, if 'n' is invalid
-            checkpartitioncount(cur, 0, rangepartitiontableprefix)
-        else:
-            # Test 2: Check the number of tables created, if all args are correct
-            checkpartitioncount(cur, n, rangepartitiontableprefix)
+    cur = openconnection.cursor()
+    if not isinstance(n, int) or n < 0:
+        # Test 1: Check the number of tables created, if 'n' is invalid
+        checkpartitioncount(cur, 0, rangepartitiontableprefix)
+    else:
+        # Test 2: Check the number of tables created, if all args are correct
+        checkpartitioncount(cur, n, rangepartitiontableprefix)
 
-            # Test 3: Test Completeness by SQL UNION ALL Magic
-            count = totalrowsinallpartitions(cur, n, rangepartitiontableprefix, partitionstartindex)
-            if count < ACTUAL_ROWS_IN_INPUT_FILE: raise Exception(
-                "Completeness property of Range Partitioning failed. Excpected {0} rows after merging all tables, but found {1} rows".format(
-                    ACTUAL_ROWS_IN_INPUT_FILE, count))
+        # Test 3: Test Completeness by SQL UNION ALL Magic
+        count = totalrowsinallpartitions(cur, n, rangepartitiontableprefix, partitionstartindex)
+        if count < ACTUAL_ROWS_IN_INPUT_FILE: raise Exception(
+            "Completeness property of Range Partitioning failed. Excpected {0} rows after merging all tables, but found {1} rows".format(
+                ACTUAL_ROWS_IN_INPUT_FILE, count))
 
-            # Test 4: Test Disjointness by SQL UNION Magic
-            count = totalrowsinallpartitions(cur, n, rangepartitiontableprefix, partitionstartindex)
-            if count > ACTUAL_ROWS_IN_INPUT_FILE: raise Exception(
-                "Dijointness property of Range Partitioning failed. Excpected {0} rows after merging all tables, but found {1} rows".format(
-                    ACTUAL_ROWS_IN_INPUT_FILE, count))
+        # Test 4: Test Disjointness by SQL UNION Magic
+        count = totalrowsinallpartitions(cur, n, rangepartitiontableprefix, partitionstartindex)
+        if count > ACTUAL_ROWS_IN_INPUT_FILE: raise Exception(
+            "Dijointness property of Range Partitioning failed. Excpected {0} rows after merging all tables, but found {1} rows".format(
+                ACTUAL_ROWS_IN_INPUT_FILE, count))
 
-            # Test 5: Test Reconstruction by SQL UNION Magic
-            count = totalrowsinallpartitions(cur, n, rangepartitiontableprefix, partitionstartindex)
-            if count != ACTUAL_ROWS_IN_INPUT_FILE: raise Exception(
-                "Rescontruction property of Range Partitioning failed. Excpected {0} rows after merging all tables, but found {1} rows".format(
-                    ACTUAL_ROWS_IN_INPUT_FILE, count))
+        # Test 5: Test Reconstruction by SQL UNION Magic
+        count = totalrowsinallpartitions(cur, n, rangepartitiontableprefix, partitionstartindex)
+        if count != ACTUAL_ROWS_IN_INPUT_FILE: raise Exception(
+            "Rescontruction property of Range Partitioning failed. Excpected {0} rows after merging all tables, but found {1} rows".format(
+                ACTUAL_ROWS_IN_INPUT_FILE, count))
 
 
 def testrangerobininsert(expectedtablename, itemid, openconnection, rating, userid):
@@ -194,12 +196,12 @@ def testloadratings(ratingstablename, filepath, openconnection, rowsininpfile):
     """
     MyAssignment.loadratings(ratingstablename, filepath, openconnection)
     # Test 1: Count the number of rows inserted
-    with openconnection.cursor() as cur:
-        cur.execute('SELECT COUNT(*) from {0}'.format(RATINGS_TABLE))
-        count = int(cur.fetchone()[0])
-        if count != rowsininpfile:
-            raise Exception(
-                'Expected {0} rows, but {1} rows in \'{2}\' table'.format(rowsininpfile, count, RATINGS_TABLE))
+    cur = openconnection.cursor()
+    cur.execute('SELECT COUNT(*) from {0}'.format(RATINGS_TABLE))
+    count = int(cur.fetchone()[0])
+    if count != rowsininpfile:
+        raise Exception(
+            'Expected {0} rows, but {1} rows in \'{2}\' table'.format(rowsininpfile, count, RATINGS_TABLE))
 
 
 @LogMe('Testing RangePartition()')
@@ -332,37 +334,37 @@ if __name__ == '__main__':
         # Use this function to do any set up after creating the DB, if any
         after_db_creation_middleware(DATABASE_NAME)
 
-        with getopenconnection(dbname=DATABASE_NAME) as conn:
-            conn.set_isolation_level(psycopg2.extensions.ISOLATION_LEVEL_AUTOCOMMIT)
+        conn = getopenconnection(dbname=DATABASE_NAME)
+        conn.set_isolation_level(psycopg2.extensions.ISOLATION_LEVEL_AUTOCOMMIT)
 
-            before_test_script_starts_middleware(conn, DATABASE_NAME)
+        before_test_script_starts_middleware(conn, DATABASE_NAME)
 
-            testloadratings(RATINGS_TABLE, INPUT_FILE_PATH, conn, ACTUAL_ROWS_IN_INPUT_FILE)
+        testloadratings(RATINGS_TABLE, INPUT_FILE_PATH, conn, ACTUAL_ROWS_IN_INPUT_FILE)
 
-            # ALERT:: Use only one at a time i.e. uncomment only one line at a time and run the script
-            testrangepartition(RATINGS_TABLE, 5, conn, RANGE_TABLE_PREFIX, 1)
-            # testrangepartition(RATINGS_TABLE, -1, conn, RANGE_TABLE_PREFIX, 1)
-            # testrangepartition(RATINGS_TABLE, 5.6, conn, RANGE_TABLE_PREFIX, 1)
+        # ALERT:: Use only one at a time i.e. uncomment only one line at a time and run the script
+        testrangepartition(RATINGS_TABLE, 5, conn, RANGE_TABLE_PREFIX, 1)
+        # testrangepartition(RATINGS_TABLE, -1, conn, RANGE_TABLE_PREFIX, 1)
+        # testrangepartition(RATINGS_TABLE, 5.6, conn, RANGE_TABLE_PREFIX, 1)
 
-            # ALERT:: Use only one at a time i.e. uncomment only one line at a time and run the script
-            testroundrobinpartition(RATINGS_TABLE, 5, conn, RROBIN_TABLE_PREFIX, 0)
-            # testroundrobinpartition(RATINGS_TABLE, -1, conn, RROBIN_TABLE_PREFIX, 0)
-            # testroundrobinpartition(RATINGS_TABLE, 5.6, conn, RROBIN_TABLE_PREFIX, 0)
+        # ALERT:: Use only one at a time i.e. uncomment only one line at a time and run the script
+        testroundrobinpartition(RATINGS_TABLE, 5, conn, RROBIN_TABLE_PREFIX, 1)
+        # testroundrobinpartition(RATINGS_TABLE, -1, conn, RROBIN_TABLE_PREFIX, 0)
+        # testroundrobinpartition(RATINGS_TABLE, 5.6, conn, RROBIN_TABLE_PREFIX, 0)
 
-            # ALERT:: Use only one at a time i.e. uncomment only one line at a time and run the script
-            testroundrobininsert(RATINGS_TABLE, 100, 1, 3, conn, RROBIN_TABLE_PREFIX + '1')
-            # testroundrobininsert(RATINGS_TABLE, 100, 1, -3, conn, RROBIN_TABLE_PREFIX + '1')
+        # ALERT:: Use only one at a time i.e. uncomment only one line at a time and run the script
+        testroundrobininsert(RATINGS_TABLE, 100, 1, 3, conn, RROBIN_TABLE_PREFIX + '1')
+        # testroundrobininsert(RATINGS_TABLE, 100, 1, -3, conn, RROBIN_TABLE_PREFIX + '1')
 
-            # ALERT:: Use only one at a time i.e. uncomment only one line at a time and run the script
-            testrangeinsert(RATINGS_TABLE, 100, 2, 3, conn, RANGE_TABLE_PREFIX + '3')
-            # testrangeinsert(RATINGS_TABLE, 100, 2, -3, conn, RANGE_TABLE_PREFIX + '3')
+        # ALERT:: Use only one at a time i.e. uncomment only one line at a time and run the script
+        testrangeinsert(RATINGS_TABLE, 100, 2, 3, conn, RANGE_TABLE_PREFIX + '3')
+        # testrangeinsert(RATINGS_TABLE, 100, 2, -3, conn, RANGE_TABLE_PREFIX + '3')
 
-            choice = raw_input('Press enter to Delete all tables? ')
-            if choice == '':
-                testdelete(conn)
+        choice = raw_input('Press enter to Delete all tables? ')
+        if choice == '':
+            testdelete(conn)
 
-            # Use this function to do any set up after I finish testing, if you want to
-            after_test_script_ends_middleware(conn, DATABASE_NAME)
+        # Use this function to do any set up after I finish testing, if you want to
+        after_test_script_ends_middleware(conn, DATABASE_NAME)
 
     except Exception as detail:
         handleerror(detail)
