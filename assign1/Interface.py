@@ -4,15 +4,17 @@
 #
 
 import psycopg2
-
+USERNAME = 'postgres'
+PASSWORD = '1234'
 DATABASE_NAME = 'dds_assgn1'
 
 
-def getopenconnection(user='postgres', password='1234', dbname='dds_assgn1'):
+def getopenconnection(user, password, dbname):
     return psycopg2.connect("dbname='" + dbname + "' user='" + user + "' host='localhost' password='" + password + "'")
 
 
 def loadratings(ratingstablename, ratingsfilepath, openconnection):
+    print('hello', 'world')
     pass
 
 
@@ -39,7 +41,7 @@ def create_db(dbname):
     :return:None
     """
     # Connect to the default database
-    con = getopenconnection(dbname='postgres')
+    con = getopenconnection(USERNAME, PASSWORD, DATABASE_NAME)
     con.set_isolation_level(psycopg2.extensions.ISOLATION_LEVEL_AUTOCOMMIT)
     cur = con.cursor()
 
@@ -88,7 +90,7 @@ if __name__ == '__main__':
         # Use this function to do any set up after creating the DB, if any
         after_db_creation_middleware(DATABASE_NAME)
 
-        with getopenconnection() as con:
+        with getopenconnection(USERNAME, PASSWORD, DATABASE_NAME) as con:
             # Use this function to do any set up before I starting calling your functions to test, if you want to
             before_test_script_starts_middleware(con, DATABASE_NAME)
 
