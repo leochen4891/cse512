@@ -20,7 +20,7 @@ ACTUAL_ROWS_IN_INPUT_FILE = 10**POWER  # Number of lines in the input file
 def getopenconnection(user=USERNAME, password=PASSWORD, dbname=DATABASE_NAME):
     return psycopg2.connect("dbname='" + DATABASE_NAME + "' user='" + USERNAME + "' host='localhost' password='" + PASSWORD + "'")
 
-def cleartable(tablename, openconnection):
+def create_table(tablename, openconnection):
     cur = openconnection.cursor()
     cur.execute("DROP TABLE IF EXISTS " + tablename)
 
@@ -36,7 +36,7 @@ def loadratings(ratingstablename, ratingsfilepath, openconnection):
     f = None
     cur = None
     try:
-        cleartable(ratingstablename, openconnection)
+        create_table(ratingstablename, openconnection)
 
         cur = openconnection.cursor()
 
