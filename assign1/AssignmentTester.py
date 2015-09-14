@@ -339,6 +339,8 @@ if __name__ == '__main__':
 
         before_test_script_starts_middleware(conn, DATABASE_NAME)
 
+        testdelete(conn)
+
         testloadratings(RATINGS_TABLE, INPUT_FILE_PATH, conn, ACTUAL_ROWS_IN_INPUT_FILE)
 
         # ALERT:: Use only one at a time i.e. uncomment only one line at a time and run the script
