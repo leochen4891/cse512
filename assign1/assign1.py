@@ -106,6 +106,7 @@ def rangepartition(ratingstablename, numberofpartitions, openconnection):
         for part_name in RANGE_PART_NAMES:
             createTableCmd = 'CREATE TABLE {0}({1} INTEGER, {2} INTEGER, {3} FLOAT)'\
                     .format(part_name, USER_ID_COLNAME, MOVIE_ID_COLNAME, RATING_COLNAME)
+            print createTableCmd
             cur.execute(createTableCmd)
             openconnection.commit()
 
@@ -239,7 +240,7 @@ if __name__ == '__main__':
         deletepartitionsandexit(con)
 
         loadratings(RATINGS_TABLE, INPUT_FILE_PATH, con)
-        # rangepartition(RATINGS_TABLE, 11, con)
+        rangepartition(RATINGS_TABLE, 11, con)
         # for r in range(0, 11):
         #     rating = float(r)/2
         #     rangeinsert(RATINGS_TABLE, 100, 1000, rating, con)

@@ -14,15 +14,18 @@ USER_ID_COLNAME = 'userid'
 MOVIE_ID_COLNAME = 'movieid'
 RATING_COLNAME = 'rating'
 
-POWER = 1
-INPUT_FILE_PATH = 'test_data{0}.dat'.format(POWER)
-ACTUAL_ROWS_IN_INPUT_FILE = 10**POWER  # Number of lines in the input file
+# POWER = 3
+# INPUT_FILE_PATH = 'test_data{0}.dat'.format(POWER)
+# ACTUAL_ROWS_IN_INPUT_FILE = 10**POWER  # Number of lines in the input file
+
+INPUT_FILE_PATH = 'test_data.dat'
+ACTUAL_ROWS_IN_INPUT_FILE = 20  # Number of lines in the input file
 
 import psycopg2
 import datetime
 import time
 
-import assign1 as MyAssignment  # TODO: Change the 'Assignment' to your filename
+import Interface as MyAssignment  # TODO: Change the 'Assignment' to your filename
 
 
 # SETUP Functions
@@ -166,16 +169,16 @@ def testrangeandrobinpartitioning(n, openconnection, rangepartitiontableprefix, 
 
 
 def testrangerobininsert(expectedtablename, itemid, openconnection, rating, userid):
-    with openconnection.cursor() as cur:
-        cur.execute(
-            'SELECT COUNT(*) FROM {0} WHERE {4} = {1} AND {5} = {2} AND {6} = {3}'.format(expectedtablename, userid,
-                                                                                          itemid, rating,
-                                                                                          USER_ID_COLNAME,
-                                                                                          MOVIE_ID_COLNAME,
-                                                                                          RATING_COLNAME))
-        count = int(cur.fetchone()[0])
-        if count != 1:  return False
-        return True
+    cur = openconnection.cursor()
+    cur.execute(
+        'SELECT COUNT(*) FROM {0} WHERE {4} = {1} AND {5} = {2} AND {6} = {3}'.format(expectedtablename, userid,
+                                                                                      itemid, rating,
+                                                                                      USER_ID_COLNAME,
+                                                                                      MOVIE_ID_COLNAME,
+                                                                                      RATING_COLNAME))
+    count = int(cur.fetchone()[0])
+    if count != 1:  return False
+    return True
 
 
 # ##########
@@ -336,10 +339,9 @@ if __name__ == '__main__':
 
         conn = getopenconnection(dbname=DATABASE_NAME)
         conn.set_isolation_level(psycopg2.extensions.ISOLATION_LEVEL_AUTOCOMMIT)
+        # conn.set_isolation_level(psycopg2.extensions.ISOLATION_LEVEL_SERIALIZABLE)
 
         before_test_script_starts_middleware(conn, DATABASE_NAME)
-
-        testdelete(conn)
 
         testloadratings(RATINGS_TABLE, INPUT_FILE_PATH, conn, ACTUAL_ROWS_IN_INPUT_FILE)
 
@@ -349,16 +351,16 @@ if __name__ == '__main__':
         # testrangepartition(RATINGS_TABLE, 5.6, conn, RANGE_TABLE_PREFIX, 1)
 
         # ALERT:: Use only one at a time i.e. uncomment only one line at a time and run the script
-        testroundrobinpartition(RATINGS_TABLE, 5, conn, RROBIN_TABLE_PREFIX, 1)
+        testroundrobinpartition(RATINGS_TABLE, 5, conn, RROBIN_TABLE_PREFIX, 0)
         # testroundrobinpartition(RATINGS_TABLE, -1, conn, RROBIN_TABLE_PREFIX, 0)
         # testroundrobinpartition(RATINGS_TABLE, 5.6, conn, RROBIN_TABLE_PREFIX, 0)
 
         # ALERT:: Use only one at a time i.e. uncomment only one line at a time and run the script
-        testroundrobininsert(RATINGS_TABLE, 100, 1, 3, conn, RROBIN_TABLE_PREFIX + '1')
+        testroundrobininsert(RATINGS_TABLE, 100, 1, 3, conn, RROBIN_TABLE_PREFIX + '0')
         # testroundrobininsert(RATINGS_TABLE, 100, 1, -3, conn, RROBIN_TABLE_PREFIX + '1')
 
         # ALERT:: Use only one at a time i.e. uncomment only one line at a time and run the script
-        testrangeinsert(RATINGS_TABLE, 100, 2, 3, conn, RANGE_TABLE_PREFIX + '3')
+        testrangeinsert(RATINGS_TABLE, 100, 2, 3, conn, RANGE_TABLE_PREFIX + '4')
         # testrangeinsert(RATINGS_TABLE, 100, 2, -3, conn, RANGE_TABLE_PREFIX + '3')
 
         choice = raw_input('Press enter to Delete all tables? ')
