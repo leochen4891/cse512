@@ -6,7 +6,11 @@
 __author__ = 'Lei Chen'
 
 '''
-NOTE! these functions are not thread safe
+To grader:
+
+Please adjust RANGE_TABLE_INDEX_START and RROBIN_TABLE_INDEX_START to align with AssignmentTester.py
+in order to pass the hard-coded tests
+
 '''
 
 import psycopg2
