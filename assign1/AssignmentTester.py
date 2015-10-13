@@ -14,18 +14,18 @@ USER_ID_COLNAME = 'userid'
 MOVIE_ID_COLNAME = 'movieid'
 RATING_COLNAME = 'rating'
 
-# POWER = 3
-# INPUT_FILE_PATH = 'test_data{0}.dat'.format(POWER)
-# ACTUAL_ROWS_IN_INPUT_FILE = 10**POWER  # Number of lines in the input file
+POWER = 4
+INPUT_FILE_PATH = 'test_data{0}.dat'.format(POWER)
+ACTUAL_ROWS_IN_INPUT_FILE = 10**POWER  # Number of lines in the input file
 
-INPUT_FILE_PATH = 'test_data.dat'
-ACTUAL_ROWS_IN_INPUT_FILE = 20  # Number of lines in the input file
+# INPUT_FILE_PATH = 'test_data.dat'
+# ACTUAL_ROWS_IN_INPUT_FILE = 20  # Number of lines in the input file
 
 import psycopg2
 import datetime
 import time
 
-import Interface as MyAssignment  # TODO: Change the 'Assignment' to your filename
+import RongyuLin as MyAssignment  # TODO: Change the 'Assignment' to your filename
 
 
 # SETUP Functions

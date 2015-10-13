@@ -6,8 +6,12 @@
 import Assignment1 as Assignment1
 import Assignment2_Interface as Assignment2
 
+POWER = 4
+INPUT_FILE_PATH = 'test_data{0}.dat'.format(POWER)
+
 if __name__ == '__main__':
     try:
+
 	# Creating Database ddsassignment2
 	print "Creating Database named as ddsassignment2"
 	Assignment1.createDB();
@@ -16,9 +20,12 @@ if __name__ == '__main__':
 	print "Getting connection from the ddsassignment2 database"
 	con = Assignment1.getOpenConnection();
 
+	# Deleting All Tables
+	Assignment1.deleteTables('all', con);
+
         # Loading Ratings table
 	print "Creating and Loading the ratings table"
-	Assignment1.loadRatings('ratings', 'ratings.dat', con);
+	Assignment1.loadRatings('ratings', INPUT_FILE_PATH, con);
 
 	# Doing Range Partition
 	print "Doing the Range Partitions"
@@ -38,9 +45,9 @@ if __name__ == '__main__':
 	# Calling PointQuery
 	print "Performing Point Query"
 	Assignment2.PointQuery('ratings', 4.5, con);
-	
-	# Deleting All Tables
-	Assignment1.deleteTables('all', con);
+
+	# # Deleting All Tables
+	# Assignment1.deleteTables('all', con);
 
         if con:
             con.close()
