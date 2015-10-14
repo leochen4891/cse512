@@ -8,28 +8,19 @@ import os
 import sys
 import datetime
 import time
-
 import Assignment1 as Assignment1
-
-'''
-To Grader:
-
-please set FORCE_READ_METADATA to True if metadata needs to be read before each query.
-This may harm the performance.
-
-'''
 
 # --------------------------------------------------------------------------------
 # -------------------------------- Constants -------------------------------------
 # --------------------------------------------------------------------------------
-FORCE_READ_METADATA = False
-
 RANGE_PREFIX = 'rangeratingspart'
 RANGE_METADATA = "rangeratingsmetadata"
 
 RROBIN_PREFIX = 'roundrobinratingspart'
 RROBIN_METADATA = 'roundrobinratingsmetadata'
 
+# read metadata everytime before query, this may hurt performance significantly
+FORCE_READ_METADATA = True
 
 # --------------------------------------------------------------------------------
 # --------------------- a class for holding ranges -------------------------------
