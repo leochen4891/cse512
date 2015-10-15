@@ -10,6 +10,13 @@ import datetime
 import time
 import Assignment1 as Assignment1
 
+'''
+To Grader:
+
+For performance test, please set FORCE_READ_METADATA to False
+
+'''
+
 # --------------------------------------------------------------------------------
 # -------------------------------- Constants -------------------------------------
 # --------------------------------------------------------------------------------
@@ -19,8 +26,11 @@ RANGE_METADATA = "rangeratingsmetadata"
 RROBIN_PREFIX = 'roundrobinratingspart'
 RROBIN_METADATA = 'roundrobinratingsmetadata'
 
-# read metadata everytime before query, this may hurt performance significantly
+# read metadata everytime before query, this may hurt performance significantly ( > 10 times)
 FORCE_READ_METADATA = True
+
+# use sql to filter ratings, not much difference from performance's point of view
+FILTER_USING_SQL = True
 
 # --------------------------------------------------------------------------------
 # --------------------- a class for holding ranges -------------------------------
@@ -120,11 +130,14 @@ def RangeQuery(ratingsTableName, ratingMinValue, ratingMaxValue, openconnection)
         # for each range, get the intersected range and output to file
         for r in ranges:
             if (r.intersects(ratingMinValue, ratingMaxValue)):
-                left, right = r.intersects(ratingMinValue, ratingMaxValue)
                 partName = RANGE_PREFIX + str(r.getIndex())
-                # print "getting items ranging from", left, "to", right, "in", partName
+                left, right = r.intersects(ratingMinValue, ratingMaxValue)
 
-                cur.execute('SELECT * from {0}'.format(partName))
+                if FILTER_USING_SQL:
+                    cur.execute('SELECT * from {0} where rating >= {1} and rating <= {2}'.format(partName, ratingMinValue, ratingMaxValue))
+                else:
+                    cur.execute('SELECT * from {0}'.format(partName))
+
                 rows = cur.fetchall()
                 for row in rows:
                     # print row,
@@ -144,7 +157,11 @@ def RangeQuery(ratingsTableName, ratingMinValue, ratingMaxValue, openconnection)
             partName = RROBIN_PREFIX + str(index)
             # print "getting items ranging from", ratingMinValue, "to", ratingMaxValue, "in", partName
 
-            cur.execute('SELECT * from {0}'.format(partName))
+            if FILTER_USING_SQL:
+                cur.execute('SELECT * FROM {0} WHERE rating >= {1} AND rating <= {2}'.format(partName, ratingMinValue, ratingMaxValue))
+            else:
+                cur.execute('SELECT * from {0}'.format(partName))
+
             rows = cur.fetchall()
             for row in rows:
                 # print row,
@@ -194,7 +211,10 @@ def PointQuery(ratingsTableName, ratingValue, openconnection):
                 partName = RANGE_PREFIX + str(r.getIndex())
                 # print "getting items of ranging", ratingValue, "in", partName
 
-                cur.execute('SELECT * from {0}'.format(partName))
+                if FILTER_USING_SQL:
+                    cur.execute('SELECT * from {0} where rating = {1}'.format(partName, ratingValue))
+                else:
+                    cur.execute('SELECT * from {0}'.format(partName))
                 rows = cur.fetchall()
                 for row in rows:
                     # print row,
@@ -214,7 +234,11 @@ def PointQuery(ratingsTableName, ratingValue, openconnection):
             partName = RROBIN_PREFIX + str(index)
             # print "getting items of ranging", ratingValue, "in", partName
 
-            cur.execute('SELECT * from {0}'.format(partName))
+            if FILTER_USING_SQL:
+                cur.execute('SELECT * from {0} where rating = {1}'.format(partName, ratingValue))
+            else:
+                cur.execute('SELECT * from {0}'.format(partName))
+
             rows = cur.fetchall()
             for row in rows:
                 # print row,
@@ -230,7 +254,7 @@ def PointQuery(ratingsTableName, ratingValue, openconnection):
 
 
 # --------------------------------------------------------------------------------
-# ------------------------- Test the performance -------------------------------
+# ------------------------------- performance test -------------------------------
 # --------------------------------------------------------------------------------
 
 # utilities (code from assign1)
@@ -256,9 +280,15 @@ def timeme(func):
     return timeme_and_call
 
 @timeme
-def test(con):
+def test1(con):
     for i in range(100):
         PointQuery('ratings', 3.0, con);
 
+@timeme
+def test2(con):
+    for i in range(10):
+        RangeQuery('ratings', 1.5, 3.5, con);
+
 # con = Assignment1.getOpenConnection();
-# test(con)
+# test1(con)
+# test2(con)

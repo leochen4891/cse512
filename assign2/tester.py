@@ -6,7 +6,7 @@
 import Assignment1 as Assignment1
 import Assignment2_Interface as Assignment2
 
-POWER = 3
+POWER = 2
 INPUT_FILE_PATH = 'test_data{0}.dat'.format(POWER)
 
 if __name__ == '__main__':
