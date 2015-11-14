@@ -6,6 +6,9 @@
 import psycopg2
 import os
 import sys
+from heapq import heappush, heappop, heapreplace, heapify
+import threading
+import time
 
 ##################### This needs to changed based on what kind of table we want to sort. ##################
 ##################### To know how to change this, see Assignment 3 Instructions carefully #################
@@ -24,6 +27,9 @@ COLLECTIONS_TABLE_COLUMNS = [MOVIE_ID_COLNAME, YEAR_ID_COLNAME, COLLECTION_COLNA
 SORT_OUTPUT_TABLE_NAME = 'parallelSortOutputTable'
 JOIN_OUTPUT_TABLE_NAME = 'parallelJoinOutputTable'
 
+PARALLEL_SORTING = True
+NUM_OF_THREADS = 5
+
 FIRST_TABLE_NAME = RATINGS_TABLE
 SECOND_TABLE_NAME = COLLECTIONS_TABLE
 SORT_COLUMN_NAME_FIRST_TABLE = RATING_COLNAME
@@ -36,10 +42,105 @@ COLLECTION_INPUT_FILE_PATH = 'moviecollections.dat'
 ##########################################################################################################
 
 
+class sortingThread (threading.Thread):
+
+    def __init__(self, arr, tarCol, name):
+        threading.Thread.__init__(self)
+        self.arr = arr
+        self.tarCol = tarCol
+        self.name = name
+
+    def run(self):
+        # print('thread ' + str(self.name) + ' started')
+        self.arr.sort(key=lambda tup:tup[self.tarCol])
+        # print('thread ' + str(self.name) + ' finished')
+
+
 # Donot close the connection inside this file i.e. do not perform openconnection.close()
 def ParallelSort (InputTable, SortingColumnName, OutputTable, openconnection):
-    #Implement ParallelSort Here.
-    pass #Remove this once you are done with implementation
+    if not InputTable or not SortingColumnName or not OutputTable or not openconnection:
+        return
+
+    cur = None
+
+    try:
+        cur = openconnection.cursor()
+
+        print('- - - - - - Start sorting ' + InputTable + ' on ' + SortingColumnName + ' - - - - - -')
+        # get the index of the sorting column
+        sqlCmd = "select column_name, data_type from information_schema.columns where table_name = '" + InputTable + "'"
+        cur.execute(sqlCmd)
+        rows = cur.fetchall()
+        tarCol = -1
+        for idx, row in enumerate(rows):
+            # print(row)
+            if row[0] == SortingColumnName:
+                tarCol = idx
+
+        print('target column index = ' + str(tarCol))
+        if (tarCol < 0):
+            print('target column not found!')
+            return
+
+        # divide all rows into N buckets
+        cur.execute('SELECT * from ' + InputTable)
+        rows = cur.fetchall()
+        totalRows = len(rows)
+        buckets = [[] for _ in range(NUM_OF_THREADS)]
+        for idx, row in enumerate(rows):
+            buckets[idx%NUM_OF_THREADS].append(row)
+
+        # and sort each bucket in parallel with K threads
+        if PARALLEL_SORTING:
+            threads = []
+            for i in range (NUM_OF_THREADS):
+                t = sortingThread(buckets[i], tarCol, i)
+                threads.append(t)
+                t.start()
+            print(str(NUM_OF_THREADS)  + ' threads started')
+            for i in range (NUM_OF_THREADS):
+                threads[i].join()
+        else:
+            for i in range(NUM_OF_THREADS):
+                buckets[i].sort(key=lambda tup:tup[tarCol])
+                # print buckets[i]
+
+        # create the output table
+        cur.execute("DROP TABLE IF EXISTS " + OutputTable)
+
+        createTableCmd = 'CREATE TABLE ' + OutputTable + ' AS SELECT * FROM ' + InputTable + ' WHERE ' + SortingColumnName + '!=' + SortingColumnName
+        # print createTableCmd
+        cur.execute(createTableCmd)
+
+        # merge each sorted list to output to the table
+        # using a heap that each item is of the format (key, index, list)
+        heap = [(b[0][tarCol], 0, b) for b in buckets if b]
+        heapify(heap)
+        while heap:
+            tup = heap[0]
+            index = tup[1]
+            sortedlist = tup[2]
+
+            item = sortedlist[index]
+            # print(item)
+            insertCmd = 'INSERT INTO ' + OutputTable + ' VALUES' + str(item)
+            cur.execute(insertCmd)
+
+
+            if index >= len(sortedlist)-1: # the list has been used up
+                heappop(heap)
+            else:
+                heapreplace(heap, (sortedlist[index+1][tarCol], index+1, sortedlist))
+
+        print('Results saved to ' + OutputTable)
+
+        openconnection.commit()
+
+    except Exception as detail:
+        print 'ParallelSort failed:', detail
+    finally:
+        if cur: cur.close
+
 
 def ParallelJoin (InputTable1, InputTable2, Table1JoinColumn, Table2JoinColumn, OutputTable, openconnection):
     #Implement ParallelJoin Here.
@@ -216,6 +317,7 @@ if __name__ == '__main__':
         # Calling ParallelSort
         print "Performing Parallel Sort"
         ParallelSort(FIRST_TABLE_NAME, SORT_COLUMN_NAME_FIRST_TABLE, SORT_OUTPUT_TABLE_NAME, con);
+        ParallelSort(SECOND_TABLE_NAME, SORT_COLUMN_NAME_SECOND_TABLE, SORT_OUTPUT_TABLE_NAME, con);
 
         # Calling ParallelJoin
         print "Performing Parallel Join"
