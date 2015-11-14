@@ -9,12 +9,30 @@ import sys
 
 ##################### This needs to changed based on what kind of table we want to sort. ##################
 ##################### To know how to change this, see Assignment 3 Instructions carefully #################
-FIRST_TABLE_NAME = 'table1'
-SECOND_TABLE_NAME = 'table2'
-SORT_COLUMN_NAME_FIRST_TABLE = 'column1'
-SORT_COLUMN_NAME_SECOND_TABLE = 'column2'
-JOIN_COLUMN_NAME_FIRST_TABLE = 'column1'
-JOIN_COLUMN_NAME_SECOND_TABLE = 'column2'
+USER_ID_COLNAME = 'userid'
+MOVIE_ID_COLNAME = 'movieid'
+RATING_COLNAME = 'rating'
+YEAR_ID_COLNAME = 'year'
+COLLECTION_COLNAME = 'collection'
+
+RATINGS_TABLE = 'movieratings'
+RATINGS_TABLE_COLUMNS = [USER_ID_COLNAME, MOVIE_ID_COLNAME, RATING_COLNAME]
+
+COLLECTIONS_TABLE = 'moviecollections'
+COLLECTIONS_TABLE_COLUMNS = [MOVIE_ID_COLNAME, YEAR_ID_COLNAME, COLLECTION_COLNAME]
+
+SORT_OUTPUT_TABLE_NAME = 'parallelSortOutputTable'
+JOIN_OUTPUT_TABLE_NAME = 'parallelJoinOutputTable'
+
+FIRST_TABLE_NAME = RATINGS_TABLE
+SECOND_TABLE_NAME = COLLECTIONS_TABLE
+SORT_COLUMN_NAME_FIRST_TABLE = RATING_COLNAME
+SORT_COLUMN_NAME_SECOND_TABLE = COLLECTION_COLNAME
+JOIN_COLUMN_NAME_FIRST_TABLE = MOVIE_ID_COLNAME
+JOIN_COLUMN_NAME_SECOND_TABLE = MOVIE_ID_COLNAME
+
+RATINGS_INPUT_FILE_PATH = 'movieratings.dat'
+COLLECTION_INPUT_FILE_PATH = 'moviecollections.dat'
 ##########################################################################################################
 
 
@@ -60,6 +78,75 @@ def createDB(dbname='ddsassignment3'):
     con.commit()
     con.close()
 
+''' LAME DESIGN: hard-coded'''
+def create_tables(openconnection):
+    cur = None
+
+    try:
+        cur = openconnection.cursor()
+        cur.execute("DROP TABLE IF EXISTS " + RATINGS_TABLE)
+        cur.execute("DROP TABLE IF EXISTS " + COLLECTIONS_TABLE)
+
+        createTableCmd = 'CREATE TABLE ' + RATINGS_TABLE + '(' \
+                         + USER_ID_COLNAME + ' INTEGER,' \
+                         + MOVIE_ID_COLNAME + ' INTEGER,' \
+                         + RATING_COLNAME + ' FLOAT)'
+        print createTableCmd
+        cur.execute(createTableCmd)
+
+        createTableCmd = 'CREATE TABLE ' + COLLECTIONS_TABLE + '(' \
+                     + MOVIE_ID_COLNAME + ' INTEGER,' \
+                     + YEAR_ID_COLNAME + ' INTEGER,' \
+                     + COLLECTION_COLNAME + ' INTEGER)'
+        print createTableCmd
+        cur.execute(createTableCmd)
+
+        openconnection.commit()
+    except Exception as detail:
+        print 'create_tables failed:', detail
+    finally:
+        if cur: cur.close()
+
+
+def load_files_to_table(openconnection):
+    f = None
+    cur = None
+    try:
+        create_tables(openconnection)
+        cur = openconnection.cursor()
+
+        # movie ratings table
+        print 'reading records from ', RATINGS_INPUT_FILE_PATH
+        f = open(RATINGS_INPUT_FILE_PATH, "r")
+
+        line = f.readline()
+        while line:
+            strs = line.split('::')
+            insertCmd = 'INSERT INTO {0} VALUES({1},{2},{3})'.format(RATINGS_TABLE, *strs)
+            print insertCmd
+            cur.execute(insertCmd)
+            line = f.readline()
+
+        # movie collections table
+        print 'reading records from ', COLLECTION_INPUT_FILE_PATH
+        f = open(COLLECTION_INPUT_FILE_PATH, "r")
+
+        line = f.readline()
+        while line:
+            strs = line.split('::')
+            insertCmd = 'INSERT INTO {0} VALUES({1},{2},{3})'.format(COLLECTIONS_TABLE, *strs)
+            print insertCmd
+            cur.execute(insertCmd)
+            line = f.readline()
+
+        openconnection.commit()
+
+    except Exception as detail:
+        print 'load_files_to_table failed:', detail
+    finally:
+        if f: f.close()
+        if cur: cur.close()
+
 # Donot change this function
 def deleteTables(ratingstablename, openconnection):
     try:
@@ -79,7 +166,7 @@ def deleteTables(ratingstablename, openconnection):
         sys.exit(1)
     except IOError, e:
         if openconnection:
-            conn.rollback()
+            openconnection.rollback()
         print 'Error %s' % e
         sys.exit(1)
     finally:
@@ -88,55 +175,59 @@ def deleteTables(ratingstablename, openconnection):
 
 # Donot change this function
 def saveTable(ratingstablename, fileName, openconnection):
-    try:
-        cursor = openconnection.cursor()
-        cursor.execute("Select * from %s" %(ratingstablename))
-        data = cursor.fetchall()
-        openFile = open(fileName, "w")
-        for row in data:
-            for d in row:
-                openFile.write(`d`+",")
-            openFile.write('\n')
-        openFile.close()
-    except psycopg2.DatabaseError, e:
-        if openconnection:
-            openconnection.rollback()
-        print 'Error %s' % e
-        sys.exit(1)
-    except IOError, e:
-        if openconnection:
-            conn.rollback()
-        print 'Error %s' % e
-        sys.exit(1)
-    finally:
-        if cursor:
-            cursor.close()
+    pass
+    # try:
+    #     cursor = openconnection.cursor()
+    #     cursor.execute("Select * from %s" %(ratingstablename))
+    #     data = cursor.fetchall()
+    #     openFile = open(fileName, "w")
+    #     for row in data:
+    #         for d in row:
+    #             openFile.write(`d`+",")
+    #         openFile.write('\n')
+    #     openFile.close()
+    # except psycopg2.DatabaseError, e:
+    #     if openconnection:
+    #         openconnection.rollback()
+    #     print 'Error %s' % e
+    #     sys.exit(1)
+    # except IOError, e:
+    #     if openconnection:
+    #         conn.rollback()
+    #     print 'Error %s' % e
+    #     sys.exit(1)
+    # finally:
+    #     if cursor:
+    #         cursor.close()
 
 if __name__ == '__main__':
     try:
-	# Creating Database ddsassignment2
-	print "Creating Database named as ddsassignment2"
-	createDB();
-	
-	# Getting connection to the database
-	print "Getting connection from the ddsassignment2 database"
-	con = getOpenConnection();
+        # Creating Database ddsassignment2
+        print "Creating Database named as ddsassignment2"
+        createDB();
 
-	# Calling ParallelSort
-	print "Performing Parallel Sort"
-	ParallelSort(FIRST_TABLE_NAME, SORT_COLUMN_NAME_FIRST_TABLE, 'parallelSortOutputTable', con);
+        # Getting connection to the database
+        print "Getting connection from the ddsassignment2 database"
+        con = getOpenConnection()
 
-	# Calling ParallelJoin
-	print "Performing Parallel Join"
-	ParallelJoin(FIRST_TABLE_NAME, SECOND_TABLE_NAME, JOIN_COLUMN_NAME_FIRST_TABLE, JOIN_COLUMN_NAME_SECOND_TABLE, 'parallelJoinOutputTable', con);
-	
-	# Saving parallelSortOutputTable and parallelJoinOutputTable on two files
-	saveTable('parallelSortOutputTable', 'parallelSortOutputTable.txt', con);
-	saveTable('parallelJoinOutputTable', 'parallelJoinOutputTable.txt', con);
+        # Create Tables
+        load_files_to_table(con)
 
-	# Deleting parallelSortOutputTable and parallelJoinOutputTable
-	deleteTables('parallelSortOutputTable', con);
-       	deleteTables('parallelJoinOutputTable', con);
+        # Calling ParallelSort
+        print "Performing Parallel Sort"
+        ParallelSort(FIRST_TABLE_NAME, SORT_COLUMN_NAME_FIRST_TABLE, SORT_OUTPUT_TABLE_NAME, con);
+
+        # Calling ParallelJoin
+        print "Performing Parallel Join"
+        ParallelJoin(FIRST_TABLE_NAME, SECOND_TABLE_NAME, JOIN_COLUMN_NAME_FIRST_TABLE, JOIN_COLUMN_NAME_SECOND_TABLE, JOIN_OUTPUT_TABLE_NAME, con);
+
+        # Saving parallelSortOutputTable and parallelJoinOutputTable on two files
+        saveTable(SORT_OUTPUT_TABLE_NAME, SORT_OUTPUT_TABLE_NAME+'.txt', con);
+        saveTable(JOIN_OUTPUT_TABLE_NAME, JOIN_OUTPUT_TABLE_NAME+'.txt', con);
+
+        # Deleting parallelSortOutputTable and parallelJoinOutputTable
+        # deleteTables(SORT_OUTPUT_TABLE_NAME, con);
+        #   	deleteTables(JOIN_OUTPUT_TABLE_NAME, con);
 
         if con:
             con.close()
