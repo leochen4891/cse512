@@ -1,6 +1,6 @@
 #!/usr/bin/python2.7
 #
-# Assignment3 Interface
+# Assignment2 Lei Chen (1206139983)
 #
 
 import psycopg2
