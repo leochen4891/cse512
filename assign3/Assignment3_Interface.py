@@ -28,6 +28,7 @@ SORT_OUTPUT_TABLE_NAME = 'parallelSortOutputTable'
 JOIN_OUTPUT_TABLE_NAME = 'parallelJoinOutputTable'
 
 PARALLEL_SORTING = True
+PARALLEL_JOINING = True
 NUM_OF_THREADS = 5
 
 FIRST_TABLE_NAME = RATINGS_TABLE
@@ -56,6 +57,34 @@ class sortingThread (threading.Thread):
         # print('thread ' + str(self.name) + ' finished')
 
 
+class joiningThread (threading.Thread):
+    def __init__(self, rows1, tarCol1, rows2, tarCol2, name):
+        threading.Thread.__init__(self)
+        self.rows1 = rows1
+        self.tarCol1 = tarCol1
+        self.rows2 = rows2
+        self.tarCol2 = tarCol2
+        self.name = name
+        self.result=[]
+
+    def run(self):
+        print('thread ' + str(self.name) + ' started')
+        for row1 in self.rows1:
+            for row2 in self.rows2:
+                if row1[self.tarCol1] == row2[self.tarCol2]:
+                    newrow = str(row1[self.tarCol1])
+                    for idx, col in enumerate(row1):
+                        if idx == self.tarCol1: continue
+                        newrow += ',' + str(row1[idx])
+                    for idx, col in enumerate(row2):
+                        if idx == self.tarCol2: continue
+                        newrow += ',' + str(row2[idx])
+                    self.result.append(newrow)
+        print('thread ' + str(self.name) + ' finished')
+
+    def getResult(self):
+        return self.result
+
 # Donot close the connection inside this file i.e. do not perform openconnection.close()
 def ParallelSort (InputTable, SortingColumnName, OutputTable, openconnection):
     if not InputTable or not SortingColumnName or not OutputTable or not openconnection:
@@ -68,15 +97,7 @@ def ParallelSort (InputTable, SortingColumnName, OutputTable, openconnection):
 
         print('- - - - - - Start sorting ' + InputTable + ' on ' + SortingColumnName + ' - - - - - -')
         # get the index of the sorting column
-        sqlCmd = "select column_name, data_type from information_schema.columns where table_name = '" + InputTable + "'"
-        cur.execute(sqlCmd)
-        rows = cur.fetchall()
-        tarCol = -1
-        for idx, row in enumerate(rows):
-            # print(row)
-            if row[0] == SortingColumnName:
-                tarCol = idx
-
+        tarCol = getColumnIndex(InputTable, SortingColumnName, openconnection)
         print('target column index = ' + str(tarCol))
         if (tarCol < 0):
             print('target column not found!')
@@ -85,7 +106,6 @@ def ParallelSort (InputTable, SortingColumnName, OutputTable, openconnection):
         # divide all rows into N buckets
         cur.execute('SELECT * from ' + InputTable)
         rows = cur.fetchall()
-        totalRows = len(rows)
         buckets = [[] for _ in range(NUM_OF_THREADS)]
         for idx, row in enumerate(rows):
             buckets[idx%NUM_OF_THREADS].append(row)
@@ -141,10 +161,111 @@ def ParallelSort (InputTable, SortingColumnName, OutputTable, openconnection):
     finally:
         if cur: cur.close
 
+def getColumnIndex(table, column, conn):
+    cur = conn.cursor()
+    sqlCmd = "select column_name, data_type from information_schema.columns where table_name = '" + table + "'"
+    cur.execute(sqlCmd)
+    rows = cur.fetchall()
+    for idx, row in enumerate(rows):
+        if row[0] == column:
+            return idx
+    return -1
 
-def ParallelJoin (InputTable1, InputTable2, Table1JoinColumn, Table2JoinColumn, OutputTable, openconnection):
-    #Implement ParallelJoin Here.
-    pass # Remove this once you are done with implementation
+def getColumnDefinition(table, conn):
+    cur = conn.cursor()
+    sqlCmd = "select column_name, data_type from information_schema.columns where table_name = '" + table + "'"
+    cur.execute(sqlCmd)
+    rows = cur.fetchall()
+    return rows
+
+
+def ParallelJoin (InputTable1, InputTable2, JoinColumnTable1, JoinColumnTable2, OutputTable, openconnection):
+    if not InputTable1 or not InputTable2 or not JoinColumnTable1 or not JoinColumnTable2 or not OutputTable or not openconnection:
+        return
+
+    cur = None
+
+    try:
+
+        print ('Start joining ' + InputTable1 + ' on ' + JoinColumnTable1 + ' and ' + InputTable2 + ' on ' + JoinColumnTable2)
+
+        cur = openconnection.cursor()
+
+        # get the index of the sorting column
+        tarCol1 = getColumnIndex(InputTable1, JoinColumnTable1, openconnection)
+        tarCol2 = getColumnIndex(InputTable2, JoinColumnTable2, openconnection)
+        if tarCol1 < 0 or tarCol2 < 0: return
+
+        # get the columns definitions
+        colDef1 =  getColumnDefinition(InputTable1, openconnection)
+        colDef2 =  getColumnDefinition(InputTable2, openconnection)
+
+        # create the output table
+        cur.execute("DROP TABLE IF EXISTS " + OutputTable)
+        createTableCmd = 'CREATE TABLE ' + OutputTable + ' ('
+        columns = colDef1[tarCol1][0] + ' ' + colDef1[tarCol1][1]
+
+        for idx, definition in enumerate(colDef1):
+            if idx == tarCol1: continue
+            columns += ',' + colDef1[idx][0] + ' ' + colDef1[idx][1]
+
+        for idx, definition in enumerate(colDef2):
+            if idx == tarCol2: continue
+            columns += ',' + colDef2[idx][0] + ' ' + colDef2[idx][1]
+
+        createTableCmd += columns + ' )'
+        print(createTableCmd)
+        cur.execute(createTableCmd)
+
+        # divide all rows of the first table into N buckets
+        cur.execute('SELECT * from ' + InputTable1)
+        rows1 = cur.fetchall()
+        cur.execute('SELECT * from ' + InputTable2)
+        rows2 = cur.fetchall()
+
+        buckets = [[] for _ in range(NUM_OF_THREADS)]
+        for idx, row in enumerate(rows1):
+            buckets[idx%NUM_OF_THREADS].append(row)
+
+        # join rows1 and rows2
+        newrows = []
+        if PARALLEL_JOINING:
+            threads = []
+            for i in range (NUM_OF_THREADS):
+                t = joiningThread(buckets[i], tarCol1, rows2, tarCol2, i)
+                threads.append(t)
+                t.start()
+            print(str(NUM_OF_THREADS)  + ' threads started')
+            for i in range (NUM_OF_THREADS):
+                threads[i].join()
+                newrows.extend(threads[i].getResult())
+        else:
+            # simplest O(n^2) matching
+            # TODO: can achieve O(nlgn) by sorting first
+            for row1 in rows1:
+                for row2 in rows2:
+                    if row1[tarCol1] == row2[tarCol2]:
+                        newrow = str(row1[tarCol1])
+                        for idx, col in enumerate(row1):
+                            if idx == tarCol1: continue
+                            newrow += ',' + str(row1[idx])
+                        for idx, col in enumerate(row2):
+                            if idx == tarCol2: continue
+                            newrow += ',' + str(row2[idx])
+                        newrows.append(newrow)
+
+
+        # add new rows to output table
+        for row in newrows:
+            insertCmd = 'INSERT INTO ' + OutputTable + ' VALUES (' + str(row) + ' )'
+            print (insertCmd)
+            cur.execute(insertCmd)
+
+        openconnection.commit()
+    except Exception as detail:
+        print 'ParallelSort failed:', detail
+    finally:
+        if cur: cur.close
 
 
 ################### DO NOT CHANGE ANYTHING BELOW THIS #############################
@@ -224,7 +345,7 @@ def load_files_to_table(openconnection):
         while line:
             strs = line.split('::')
             insertCmd = 'INSERT INTO {0} VALUES({1},{2},{3})'.format(RATINGS_TABLE, *strs)
-            print insertCmd
+            # print insertCmd
             cur.execute(insertCmd)
             line = f.readline()
 
@@ -236,7 +357,7 @@ def load_files_to_table(openconnection):
         while line:
             strs = line.split('::')
             insertCmd = 'INSERT INTO {0} VALUES({1},{2},{3})'.format(COLLECTIONS_TABLE, *strs)
-            print insertCmd
+            # print insertCmd
             cur.execute(insertCmd)
             line = f.readline()
 
@@ -316,8 +437,8 @@ if __name__ == '__main__':
 
         # Calling ParallelSort
         print "Performing Parallel Sort"
-        ParallelSort(FIRST_TABLE_NAME, SORT_COLUMN_NAME_FIRST_TABLE, SORT_OUTPUT_TABLE_NAME, con);
-        ParallelSort(SECOND_TABLE_NAME, SORT_COLUMN_NAME_SECOND_TABLE, SORT_OUTPUT_TABLE_NAME, con);
+        # ParallelSort(FIRST_TABLE_NAME, SORT_COLUMN_NAME_FIRST_TABLE, SORT_OUTPUT_TABLE_NAME, con);
+        # ParallelSort(SECOND_TABLE_NAME, SORT_COLUMN_NAME_SECOND_TABLE, SORT_OUTPUT_TABLE_NAME, con);
 
         # Calling ParallelJoin
         print "Performing Parallel Join"
