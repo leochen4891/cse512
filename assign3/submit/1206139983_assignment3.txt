@@ -1,6 +1,6 @@
 #!/usr/bin/python2.7
 #
-# Assignment2 Lei Chen (1206139983)
+# Lei Chen ( 1206139983)
 #
 
 import psycopg2
@@ -17,11 +17,18 @@ RATING_COLNAME = 'rating'
 YEAR_ID_COLNAME = 'year'
 COLLECTION_COLNAME = 'collection'
 
+INTEGER_TYPE = 'INTEGER'
+FLOAT_TYPE ='FLOAT'
+
+SEPARATOR = '::'
+
 RATINGS_TABLE = 'movieratings'
 RATINGS_TABLE_COLUMNS = [USER_ID_COLNAME, MOVIE_ID_COLNAME, RATING_COLNAME]
+RATINGS_TABLE_COLUMNS_TYPE = [INTEGER_TYPE, INTEGER_TYPE, FLOAT_TYPE]
 
 COLLECTIONS_TABLE = 'moviecollections'
 COLLECTIONS_TABLE_COLUMNS = [MOVIE_ID_COLNAME, YEAR_ID_COLNAME, COLLECTION_COLNAME]
+COLLECTIONS_TABLE_COLUMNS_TYPE = [INTEGER_TYPE, INTEGER_TYPE, INTEGER_TYPE]
 
 RATINGS_INPUT_FILE_PATH = RATINGS_TABLE+ '.dat'
 COLLECTION_INPUT_FILE_PATH = COLLECTIONS_TABLE + '.dat'
@@ -45,34 +52,24 @@ JOIN_COLUMN_NAME_SECOND_TABLE = MOVIE_ID_COLNAME
 #################################### Utility classes and functions #######################################
 ##########################################################################################################
 
-''' a hard coded helper function to create two test tables '''
-def create_tables(openconnection):
-    cur = None
+''' a helper function to create test tables '''
+def create_table(cur, table, columns, columns_type):
+    cur.execute("DROP TABLE IF EXISTS " + table)
+    createTableCmd = 'CREATE TABLE ' + table + '('
+    size = len(columns)
+    for i in range(size): createTableCmd += columns[i] + ' ' + columns_type[i] + (', ' if i < size-1 else '')
+    createTableCmd += ')'
+    print createTableCmd
+    cur.execute(createTableCmd)
 
-    try:
-        cur = openconnection.cursor()
-        cur.execute("DROP TABLE IF EXISTS " + RATINGS_TABLE)
-        cur.execute("DROP TABLE IF EXISTS " + COLLECTIONS_TABLE)
 
-        createTableCmd = 'CREATE TABLE ' + RATINGS_TABLE + '(' \
-                         + USER_ID_COLNAME + ' INTEGER,' \
-                         + MOVIE_ID_COLNAME + ' INTEGER,' \
-                         + RATING_COLNAME + ' FLOAT)'
-        print createTableCmd
-        cur.execute(createTableCmd)
-
-        createTableCmd = 'CREATE TABLE ' + COLLECTIONS_TABLE + '(' \
-                     + MOVIE_ID_COLNAME + ' INTEGER,' \
-                     + YEAR_ID_COLNAME + ' INTEGER,' \
-                     + COLLECTION_COLNAME + ' INTEGER)'
-        print createTableCmd
-        cur.execute(createTableCmd)
-
-        openconnection.commit()
-    except Exception as detail:
-        print 'create_tables failed:', detail
-    finally:
-        if cur: cur.close()
+''' a helper function to create test tables '''
+def insert_table(cur, table, columns, data):
+    insertCmd = 'INSERT INTO ' + table + ' VALUES ('
+    size = len(columns)
+    for i in range(size): insertCmd += data[i] + (', ' if i < size-1 else '')
+    insertCmd += ')'
+    cur.execute(insertCmd)
 
 
 ''' a hard coded helper function to load two test files into tables'''
@@ -80,8 +77,11 @@ def load_files_to_table(openconnection):
     f = None
     cur = None
     try:
-        create_tables(openconnection)
         cur = openconnection.cursor()
+
+        # create test tables
+        create_table(cur, RATINGS_TABLE, RATINGS_TABLE_COLUMNS, RATINGS_TABLE_COLUMNS_TYPE)
+        create_table(cur, COLLECTIONS_TABLE, COLLECTIONS_TABLE_COLUMNS, COLLECTIONS_TABLE_COLUMNS_TYPE)
 
         # movie ratings table
         print 'reading records from ', RATINGS_INPUT_FILE_PATH
@@ -89,10 +89,7 @@ def load_files_to_table(openconnection):
 
         line = f.readline()
         while line:
-            strs = line.split('::')
-            insertCmd = 'INSERT INTO {0} VALUES({1},{2},{3})'.format(RATINGS_TABLE, *strs)
-            # print insertCmd
-            cur.execute(insertCmd)
+            insert_table(cur, RATINGS_TABLE, RATINGS_TABLE_COLUMNS, line.split(SEPARATOR))
             line = f.readline()
 
         # movie collections table
@@ -101,10 +98,7 @@ def load_files_to_table(openconnection):
 
         line = f.readline()
         while line:
-            strs = line.split('::')
-            insertCmd = 'INSERT INTO {0} VALUES({1},{2},{3})'.format(COLLECTIONS_TABLE, *strs)
-            # print insertCmd
-            cur.execute(insertCmd)
+            insert_table(cur, COLLECTIONS_TABLE, COLLECTIONS_TABLE_COLUMNS, line.split(SEPARATOR))
             line = f.readline()
 
         openconnection.commit()
@@ -188,9 +182,9 @@ def ParallelSort (InputTable, SortingColumnName, OutputTable, openconnection):
     cur = None
     try:
         print('- - - - - - Start sorting ' + InputTable + ' on ' + SortingColumnName + ' - - - - - -')
+        cur = openconnection.cursor()
 
         # get the index of the sorting column
-        cur = openconnection.cursor()
         tarCol = getColumnIndex(InputTable, SortingColumnName, openconnection)
         # print('target column index = ' + str(tarCol))
         if (tarCol < 0):
@@ -262,9 +256,9 @@ def ParallelJoin (InputTable1, InputTable2, JoinColumnTable1, JoinColumnTable2, 
 
     try:
         print ('- - - - - - - Start joining ' + InputTable1 + ' on ' + JoinColumnTable1 + ' and ' + InputTable2 + ' on ' + JoinColumnTable2 + ' - - - - - -')
+        cur = openconnection.cursor()
 
         # get the index of the sorting column
-        cur = openconnection.cursor()
         tarCol1 = getColumnIndex(InputTable1, JoinColumnTable1, openconnection)
         tarCol2 = getColumnIndex(InputTable2, JoinColumnTable2, openconnection)
         if tarCol1 < 0 or tarCol2 < 0: return
