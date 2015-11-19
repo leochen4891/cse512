@@ -92,6 +92,8 @@ def load_files_to_table(openconnection):
             insert_table(cur, RATINGS_TABLE, RATINGS_TABLE_COLUMNS, line.split(SEPARATOR))
             line = f.readline()
 
+        if f: f.close()
+
         # movie collections table
         print 'reading records from ', COLLECTION_INPUT_FILE_PATH
         f = open(COLLECTION_INPUT_FILE_PATH, "r")
