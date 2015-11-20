@@ -4,7 +4,7 @@ HADOOP_CMD="/home/user/hadoop-2.7.1/bin/hadoop"
 FUNCTION_NAME="Equijoin"
 INPUT_PATH=""
 INPUT_FILE="input.txt"
-OUTPUT_PATH="/output1"
+OUTPUT_PATH="/output"
 
 
 set -x

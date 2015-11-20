@@ -54,7 +54,7 @@ public class Equijoin {
 			*/
 			for (Text t : values) {
 				String line = t.toString();
-				String[] strs = line.split(",", 3);
+				String[] strs = line.split(",", 2);
 				String tableName = strs[0];
 				List<String> table = tables.get(tableName);
 				if (null == table) table = new LinkedList<String>();
