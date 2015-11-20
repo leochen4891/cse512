@@ -110,7 +110,7 @@ if __name__ == '__main__':
 
 	# Calling ParallelSort
 	print "Performing Parallel Sort"
-	Assignment3.ParallelSort('ratings', 'Rating', 'parallelSortOutputTable', con);
+	Assignment3.ParallelSort('ratings', 'rating', 'parallelSortOutputTable', con);
 	a = raw_input("Check in database and once you are done, press enter to delete all tables: ");
 	deleteTables('ALL', con);
 
@@ -119,7 +119,7 @@ if __name__ == '__main__':
 	loadMovies('movies', 'movies.dat', con);
 	# Calling ParallelJoin
 	print "Performing Parallel Join"
-	Assignment3.ParallelJoin('ratings', 'movies', 'MovieId', 'MovieId1', 'parallelJoinOutputTable', con);
+	Assignment3.ParallelJoin('ratings', 'movies', 'movieid', 'movieid1', 'parallelJoinOutputTable', con);
 	a = raw_input("Check in database and once you are done, press enter to delete all tables: ");
 	deleteTables('ALL', con);
 
